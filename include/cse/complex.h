@@ -1,34 +1,19 @@
-/// cse/complex.h — the Complex domain: ℂ. Analysis + the imaginary unit i and conjugation.
+/// cse/complex.h — the Complex domain: a value is a pair (re, im) over a component field. Generic over
+/// cse_field — this repo never names its component. Supply Arith's field and it is Gaussian ℚ[i]; supply
+/// a reals field and it is ℂ. Stacks on the spine + CSE-DSA + the field *interface* (not a field).
 /// SPDX-License-Identifier: MIT OR Apache-2.0
-///
-/// Complex stacks on Analysis (ℝ[i]). It adds one element, i, with i²=−1, and one operation,
-/// conjugation, which is a field automorphism. The field/ring/transcendental laws are inherited; these
-/// are what "complex" adds. Algebraic closure (every polynomial has a root) is the domain's headline
-/// property but not an equational law — the operational core below is i²=−1 and the conjugation laws.
-/// Operations build structure; `≡` is the spine's order at level; reduction is a provider's job.
 #pragma once
 #include "slate/psda.h"
-#include "cse/analysis.h"   /* Complex = Analysis + i */
+#include "cse/field.h"
 
-/// The imaginary unit (a constant atom) and the conjugation operation atom.
-extern slate_reading cse_complex_i;        /* i */
-extern slate_reading cse_complex_conj_op;  /* conjugate */
+/// build re + im·i, and read the parts.
+slate_psda *cse_complex(slate_psda **pool, slate_psda *re, slate_psda *im);
+slate_psda *cse_complex_re(slate_psda *z);
+slate_psda *cse_complex_im(slate_psda *z);
 
-/// The operations — each builds a composition drawn from `pool`; none computes.
-slate_psda *cse_complex_i_val(slate_psda **pool);                 /* i        */
-slate_psda *cse_complex_conj (slate_psda **pool, slate_psda *a);  /* conj(a)  */
-
-/// Equivalence — the spine's order at level (reduction supplied by a provider).
-slate_psda *cse_complex_eq(slate_psda *x, slate_psda *y);
-
-/// ─── the invariants Complex adds ────────────────────────────────────────────────────────────────────
-///   i_sq        i · i ≡ −1
-///   conj_conj   conj(conj(a)) ≡ a
-///   conj_add    conj(a+b) ≡ conj(a) + conj(b)
-///   conj_mul    conj(a·b) ≡ conj(a) · conj(b)
-///   conj_i      conj(i) ≡ −i
-slate_psda *cse_complex_i_sq     (slate_psda **s);
-slate_psda *cse_complex_conj_conj(slate_psda **s, slate_psda *a);
-slate_psda *cse_complex_conj_add (slate_psda **s, slate_psda *a, slate_psda *b);
-slate_psda *cse_complex_conj_mul (slate_psda **s, slate_psda *a, slate_psda *b);
-slate_psda *cse_complex_conj_i   (slate_psda **s);
+/// (a+bi) + (c+di) = (a+c) + (b+d)i   — over the given field F.
+slate_psda *cse_complex_add(const cse_field *F, slate_psda **pool, slate_psda *x, slate_psda *y);
+/// (a+bi)(c+di) = (ac−bd) + (ad+bc)i
+slate_psda *cse_complex_mul(const cse_field *F, slate_psda **pool, slate_psda *x, slate_psda *y);
+/// conjugate: a − bi
+slate_psda *cse_complex_conj(const cse_field *F, slate_psda **pool, slate_psda *z);
