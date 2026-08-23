@@ -1,20 +1,15 @@
-/* tests/complex.c — the wiring: Complex (generic) + Arith (a field provider) = Gaussian ℚ[i]. The test
-   is where the concrete field is chosen; the library above knows nothing about Arith.
+/* tests/complex.c — Gaussian ℚ[i], type-first. No field is wired; Complex stacks on Arith directly, and
+   a value carries the ℂ tag. The op refuses a foreign carrier.
    SPDX-License-Identifier: MIT OR Apache-2.0 */
 #include <stdio.h>
 #include "cse/complex.h"
-#include "cse/field.h"
-#include "cse/arith.h"    /* the provider, chosen here at the wiring point */
+#include "cse/arith.h"
+#include "cse/types.h"
 #include "prime.h"        /* Arith's plain-integer boundary, to read components */
 #include "slate/psda.h"
 
 static int fails = 0;
 #define CHECK(c, m) do { if (!(c)) { printf("  FAIL %s\n", (m)); fails++; } } while (0)
-
-/* wire Arith's operations into a field bundle — this is the only place Arith appears */
-static const cse_field Q = {
-  cse_arith_add, cse_arith_sub, cse_arith_mul, cse_arith_neg, cse_arith_inv, cse_arith_div
-};
 
 static slate_psda arena[1024];
 static slate_psda *pool;
@@ -33,11 +28,15 @@ int main(void) {
   pool_init();
   slate_psda *a = C(1, 2), *b = C(3, 4);
 
-  CHECK(isc(cse_complex_add(&Q, &pool, a, b), 4, 6), "(1+2i) + (3+4i) = 4+6i");
-  CHECK(isc(cse_complex_mul(&Q, &pool, a, b), -5, 10), "(1+2i)(3+4i) = −5+10i");
-  CHECK(isc(cse_complex_conj(&Q, &pool, a), 1, -2), "conj(1+2i) = 1−2i");
-  CHECK(isc(cse_complex_mul(&Q, &pool, a, cse_complex_conj(&Q, &pool, a)), 5, 0), "(1+2i)(1−2i) = 5");
-  CHECK(isc(cse_complex_mul(&Q, &pool, C(0,1), C(0,1)), -1, 0), "i·i = −1");
+  CHECK(isc(cse_complex_add(&pool, a, b), 4, 6), "(1+2i) + (3+4i) = 4+6i");
+  CHECK(isc(cse_complex_mul(&pool, a, b), -5, 10), "(1+2i)(3+4i) = −5+10i");
+  CHECK(isc(cse_complex_conj(&pool, a), 1, -2), "conj(1+2i) = 1−2i");
+  CHECK(isc(cse_complex_mul(&pool, a, cse_complex_conj(&pool, a)), 5, 0), "(1+2i)(1−2i) = 5");
+  CHECK(isc(cse_complex_mul(&pool, C(0,1), C(0,1)), -1, 0), "i·i = −1");
+
+  /* type-first: a value has the ℂ tag, and mul restricts its carrier to ℂ */
+  CHECK(cse_type_has(a, cse_complex_type()) != 0, "a value has type ℂ");
+  CHECK(cse_complex_mul(&pool, cse_arith_val(&pool, 2, 1), b) == 0, "mul refuses a ℚ where ℂ is required");
 
   printf(fails ? "complex: FAIL\n" : "complex: ok\n");
   return fails ? 1 : 0;
